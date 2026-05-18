@@ -17,14 +17,15 @@ Skills Developed:
 """
 
 import pygame
-from os.path import join
 from random import randint, uniform
 from colorsys import hsv_to_rgb
+from os.path import dirname, abspath, join
+BASE_DIR = dirname(abspath(__file__))
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
         super().__init__(groups)
-        self.image = pygame.transform.scale_by(pygame.image.load(join("images", "player.png")).convert_alpha(), 3.5)
+        self.image = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "player.png")).convert_alpha(), 3.5)
         self.rect = self.image.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
         self.direction = pygame.math.Vector2()
         self.speed = 350
@@ -272,26 +273,26 @@ star_interval = int((WINDOW_HEIGHT / STAR_SPEED) / 20 * 1000)
 star_event = pygame.event.custom_type()
 pygame.time.set_timer(star_event, star_interval)
 game_started = False
-splash_surf = pygame.image.load(join("images", "splash.png")).convert()
 
 # import
-star_surface = pygame.transform.scale_by(pygame.image.load(join("images", "star.png")).convert_alpha(), 2)
-meteor_surf = pygame.transform.scale_by(pygame.image.load(join("images", "meteor.png")).convert_alpha(), 3)
-laser_surf = pygame.transform.scale_by(pygame.image.load(join("images", "laser.png")).convert_alpha(), 2)
-explosion_frames = [pygame.image.load(join("images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
-font = pygame.font.Font(join("images", "PressStart2P-Regular.ttf"), 20)
+splash_surf = pygame.image.load(join(BASE_DIR, "images", "splash.png")).convert()
+star_surface = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "star.png")).convert_alpha(), 2)
+meteor_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "meteor.png")).convert_alpha(), 3)
+laser_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "laser.png")).convert_alpha(), 2)
+explosion_frames = [pygame.image.load(join(BASE_DIR, "images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
+font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 40)
+score_font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 20)
 
-laser_sound = pygame.mixer.Sound(join("audio", "laser.wav"))
+laser_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "laser.wav"))
 laser_sound.set_volume(0.1)
-explosion_sound = pygame.mixer.Sound(join("audio", "explosion.wav"))
+explosion_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "explosion.wav"))
 explosion_sound.set_volume(0.1)
-damage_sound = pygame.mixer.Sound(join("audio", "damage.ogg"))
+damage_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "damage.ogg"))
 damage_sound.set_volume(0.1)
-game_music = pygame.mixer.Sound(join("audio", "game_music.wav"))
+game_music = pygame.mixer.Sound(join(BASE_DIR, "audio", "game_music.wav"))
 game_music.set_volume(0.1)
-game_music.play(loops = -1)
+game_music.play(loops=-1)
 
-# sprite groups — created once, emptied and repopulated by reset()
 all_sprites = pygame.sprite.Group()
 meteor_sprites = pygame.sprite.Group()
 laser_sprites = pygame.sprite.Group()
