@@ -23,7 +23,7 @@ from random import randint, uniform
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
         super().__init__(groups)
-        self.image = pygame.transform.scale_by(pygame.image.load(join("images", "player.png")).convert_alpha(), 3)
+        self.image = pygame.transform.scale_by(pygame.image.load(join("images", "player.png")).convert_alpha(), 3.5)
         self.rect = self.image.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
         self.direction = pygame.math.Vector2()
         self.speed = 350
@@ -99,8 +99,8 @@ class Meteor(pygame.sprite.Sprite):
     def __init__(self, meteor_surface, pos, *groups):
         super().__init__(groups)
         global current_level
-        self.og_image = pygame.transform.scale_by(meteor_surface, uniform(0.5, 1.5))
-        self.image = meteor_surface
+        self.og_image = pygame.transform.scale_by(meteor_surface, uniform(0.5, 2))
+        self.image = self.og_image
         self.rect = self.image.get_frect(center = pos)
         self.start_time = pygame.time.get_ticks()
         self.lifetime = 3000
