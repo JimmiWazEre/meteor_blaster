@@ -23,7 +23,7 @@ from random import randint, uniform
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
         super().__init__(groups)
-        self.image = pygame.image.load(join("images", "player.png")).convert_alpha()
+        self.image = pygame.transform.scale_by(pygame.image.load(join("images", "player.png")).convert_alpha(), 3)
         self.rect = self.image.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
         self.direction = pygame.math.Vector2()
         self.speed = 350
@@ -135,22 +135,23 @@ class Explosion(pygame.sprite.Sprite):
         if pygame.time.get_ticks() - self.start_time >= self.lifetime:
             self.kill()
 
-def reset(): # NEW: wraps all game state setup so it can be called at start and on restart
+def reset(): # wraps all game state setup so it can be called at start and on restart
     global game_active, final_score, player, start_time, previous_level, level_up_time, current_level, meteor_event, score_bonus # NEW: declares the variables we need to modify at the outer scope
 
-    all_sprites.empty()    # NEW: clears all sprites from the group
-    meteor_sprites.empty() # NEW: clears all meteors
-    laser_sprites.empty()  # NEW: clears all lasers
-    star_positions.clear() # NEW: empties the list in place (not reassigned) so Star.__init__ can repopulate it
+    all_sprites.empty()    # clears all sprites from the group
+    meteor_sprites.empty() # clears all meteors
+    laser_sprites.empty()  # clears all lasers
+    star_sprites.empty()
+    star_positions.clear() # empties the list in place (not reassigned) so Star.__init__ can repopulate it
 
     for i in range(20):
-        Star(all_sprites, star_surface, star_positions) # NEW: recreates stars fresh each reset
+        Star(star_sprites, star_surface, star_positions) # recreates stars fresh each reset
 
     player = Player(all_sprites) # NEW: recreates the player
 
-    game_active = True  # NEW: ensures the game runs after reset
-    final_score = 0     # NEW: clears the frozen score from the previous run
-    start_time = pygame.time.get_ticks() # NEW: records the time at the start of each run so score is relative, not absolute
+    game_active = True  # ensures the game runs after reset
+    final_score = 0     # clears the frozen score from the previous run
+    start_time = pygame.time.get_ticks() # records the time at the start of each run so score is relative, not absolute
     previous_level = 0
     level_up_time = 0
     current_level = 1
@@ -168,7 +169,7 @@ def collisions():
             explosion_sound.play()
             player.kill()
             game_active = False
-            final_score = (pygame.time.get_ticks() - start_time) // 100 + score_bonus # NEW: score relative to run start, not program start
+            final_score = (pygame.time.get_ticks() - start_time) // 100 + score_bonus # core relative to run start, not program start
 
     for laser in laser_sprites:
         collision_sprites = pygame.sprite.spritecollide(laser, meteor_sprites, True)
@@ -242,10 +243,10 @@ star_event = pygame.event.custom_type() # NEW
 pygame.time.set_timer(star_event, star_interval) # NEW
 
 # import
-star_surface = pygame.image.load(join("images", "star.png")).convert_alpha()
-meteor_surf = pygame.image.load(join("images", "meteor.png")).convert_alpha()
-laser_surf = pygame.image.load(join("images", "laser.png")).convert_alpha()
-explosion_frames = [pygame.image.load(join("images", "explosion", f"{i}.png")).convert_alpha() for i in range(21)]
+star_surface = pygame.transform.scale_by(pygame.image.load(join("images", "star.png")).convert_alpha(), 2)
+meteor_surf = pygame.transform.scale_by(pygame.image.load(join("images", "meteor.png")).convert_alpha(), 3)
+laser_surf = pygame.transform.scale_by(pygame.image.load(join("images", "laser.png")).convert_alpha(), 2)
+explosion_frames = [pygame.image.load(join("images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
 font = pygame.font.Font(join("images", "Oxanium-Bold.ttf"), 40)
 
 laser_sound = pygame.mixer.Sound(join("audio", "laser.wav"))
@@ -262,6 +263,7 @@ game_music.play(loops = -1)
 all_sprites = pygame.sprite.Group()
 meteor_sprites = pygame.sprite.Group()
 laser_sprites = pygame.sprite.Group()
+star_sprites = pygame.sprite.Group()
 
 reset() # replaces the inline sprite setup block — does the same thing but is now reusable
 
@@ -273,13 +275,13 @@ while running:
         if event.type == pygame.QUIT or esc[pygame.K_ESCAPE]:
             running = False
         if event.type == star_event and game_active:
-            existing_x = [s.rect.centerx for s in all_sprites if isinstance(s, Star)]
+            existing_x = [s.rect.centerx for s in star_sprites if isinstance(s, Star)]
             x = randint(50, WINDOW_WIDTH - 50)
             attempts = 0
             while any(abs(x - ex) < 100 for ex in existing_x) and attempts < 30:
                 x = randint(50, WINDOW_WIDTH - 50)
                 attempts += 1
-            Star(all_sprites, star_surface, star_positions, scrolling=True, spawn_x=x)
+            Star(star_sprites, star_surface, star_positions, scrolling=True, spawn_x=x)
         if event.type == meteor_event and game_active: # stops spawning meteors after game over
             x, y = randint(0, WINDOW_WIDTH), randint(-200, -100)
             Meteor(meteor_surf, (x, y), all_sprites, meteor_sprites)
@@ -288,6 +290,7 @@ while running:
                 reset() # calls reset to restart the game
 
     window.fill('#3a2e3f')
+    star_sprites.draw(window)
     all_sprites.draw(window)
 
     if game_active:
@@ -300,6 +303,7 @@ while running:
     if not game_active:
         game_over()
     else:
+        star_sprites.update(dt)
         all_sprites.update(dt)
         collisions()
         update_level()
