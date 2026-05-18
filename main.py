@@ -19,6 +19,7 @@ Skills Developed:
 import pygame
 from os.path import join
 from random import randint, uniform
+from colorsys import hsv_to_rgb
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
@@ -222,7 +223,7 @@ def display_score():
     text_surf = font.render(str(current_time), True, (240, 240, 240))
     text_rect = text_surf.get_frect(midbottom = (WINDOW_WIDTH / 2, WINDOW_HEIGHT - 50))
     window.blit(text_surf, text_rect)
-    pygame.draw.rect(window, (240, 240, 240), text_rect.inflate(20, 30).move(0, -3), 5, 10)
+    pygame.draw.rect(window, (240, 240, 240), text_rect.inflate(20, 30).move(0, -2), 5, 10)
 
 def game_over():
     text_surf = font.render("GAME OVER", True, (240, 240, 240))
@@ -278,7 +279,7 @@ star_surface = pygame.transform.scale_by(pygame.image.load(join("images", "star.
 meteor_surf = pygame.transform.scale_by(pygame.image.load(join("images", "meteor.png")).convert_alpha(), 3)
 laser_surf = pygame.transform.scale_by(pygame.image.load(join("images", "laser.png")).convert_alpha(), 2)
 explosion_frames = [pygame.image.load(join("images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
-font = pygame.font.Font(join("images", "PressStart2P-Regular.ttf"), 40)
+font = pygame.font.Font(join("images", "PressStart2P-Regular.ttf"), 20)
 
 laser_sound = pygame.mixer.Sound(join("audio", "laser.wav"))
 laser_sound.set_volume(0.1)
@@ -328,14 +329,18 @@ while running:
         splash_screen()
     elif not game_active:
         current_time = final_score
-        window.fill('#3a2e3f')
+        hue = (pygame.time.get_ticks() / 50000) % 1.0  # slow cycle through full hue range
+        r, g, b = hsv_to_rgb(hue, 0.6, 0.15)  # saturation 0.6, value 0.25 keeps it dark
+        window.fill((int(r * 255), int(g * 255), int(b * 255)))
         star_sprites.draw(window)
         all_sprites.draw(window)
         display_score()
         game_over()
     else:
         current_time = (pygame.time.get_ticks() - start_time) // 100 + score_bonus
-        window.fill('#3a2e3f')
+        hue = (pygame.time.get_ticks() / 50000) % 1.0  # slow cycle through full hue range
+        r, g, b = hsv_to_rgb(hue, 0.6, 0.15)  # saturation 0.6, value 0.25 keeps it dark
+        window.fill((int(r * 255), int(g * 255), int(b * 255)))
         star_sprites.update(dt)
         all_sprites.update(dt)
         engine_particles.update(dt)
