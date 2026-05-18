@@ -86,7 +86,6 @@ class Star(pygame.sprite.Sprite):
         if pygame.time.get_ticks() - self.start_time >= self.lifetime:
             self.kill()
 
-
 class Laser(pygame.sprite.Sprite):
     def __init__(self, laser_surface, pos, *groups):
         super().__init__(groups)
@@ -206,8 +205,6 @@ def collisions():
                 Explosion(explosion_frames, i.rect.center, all_sprites)
                 explosion_sound.play()
                 score_bonus += 20
-                
-
 
     meteors = list(meteor_sprites)
     for i, meteor1 in enumerate(meteors):
@@ -230,9 +227,9 @@ def game_over():
     text_surf = font.render("GAME OVER", True, (240, 240, 240))
     text_rect = text_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
     window.blit(text_surf, text_rect)
-    prompt_surf = font.render("Press R to play again", True, (240, 240, 240)) # NEW: restart prompt
+    prompt_surf = font.render("Press R to play again", True, (240, 240, 240)) # restart prompt
     prompt_rect = prompt_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 60))
-    window.blit(prompt_surf, prompt_rect) # NEW: draws the prompt below the game over message
+    window.blit(prompt_surf, prompt_rect) # draws the prompt below the game over message
 
 def update_level():
     global previous_level, level_up_time, current_level
@@ -298,8 +295,6 @@ meteor_sprites = pygame.sprite.Group()
 laser_sprites = pygame.sprite.Group()
 star_sprites = pygame.sprite.Group()
 engine_particles = pygame.sprite.Group()
-
-# reset() # replaces the inline sprite setup block — does the same thing but is now reusable
 
 while running:
     dt = clock.tick(60) / 1000
