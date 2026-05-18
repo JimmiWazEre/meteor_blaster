@@ -49,7 +49,6 @@ class Player(pygame.sprite.Sprite):
         self.direction = self.direction.normalize() if self.direction else self.direction
         self.rect.center += self.direction * self.speed * dt
         self.rect.clamp_ip(pygame.Rect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT))
-
         recent_keys = pygame.key.get_just_pressed()
         if recent_keys[pygame.K_SPACE] and self.can_shoot:
             Laser(laser_surf, self.rect.midtop, all_sprites, laser_sprites)
@@ -58,6 +57,9 @@ class Player(pygame.sprite.Sprite):
             laser_sound.play()
         
         self.laser_timer()
+        x, y = self.rect.midbottom
+        for _ in range(8):
+            EngineParticle((x, y - 10), engine_particles)
 
 class Star(pygame.sprite.Sprite):
     def __init__(self, groups, star_surface, star_positions, scrolling=False, spawn_x=None):
@@ -131,9 +133,30 @@ class Explosion(pygame.sprite.Sprite):
     def update(self, dt):
         self.frame_index += 100 * dt
         self.image = self.frames[int(self.frame_index) % len(self.frames)]
+        self.image = pygame.transform.scale_by(self.image, 2)
         self.rect = self.image.get_frect(center = self.rect.center)
         if pygame.time.get_ticks() - self.start_time >= self.lifetime:
             self.kill()
+
+class EngineParticle(pygame.sprite.Sprite):
+    def __init__(self, pos, groups):
+        super().__init__(groups)
+        self.image = pygame.Surface((4, 4), pygame.SRCALPHA)
+        self.image.fill((255, randint(50, 150), 0))
+        self.rect = self.image.get_frect(center = pos)
+        self.start_time = pygame.time.get_ticks()
+        self.lifetime = randint(150, 300)
+        self.direction = pygame.Vector2(uniform(-1, 1), 2)
+        self.speed = randint(100, 400)
+        self.velocity = pygame.Vector2(uniform(-0.5, 0.5), 5) * self.speed
+
+    def update(self, dt):
+        self.rect.center += self.velocity * dt
+        remaining = 1 - (pygame.time.get_ticks() - self.start_time) / self.lifetime
+        self.image.set_alpha(int(255 * remaining))
+        if remaining <= 0:
+            self.kill()
+
 
 def reset(): # wraps all game state setup so it can be called at start and on restart
     global game_active, final_score, player, start_time, previous_level, level_up_time, current_level, meteor_event, score_bonus # NEW: declares the variables we need to modify at the outer scope
@@ -143,6 +166,7 @@ def reset(): # wraps all game state setup so it can be called at start and on re
     laser_sprites.empty()  # clears all lasers
     star_sprites.empty()
     star_positions.clear() # empties the list in place (not reassigned) so Star.__init__ can repopulate it
+    engine_particles.empty()
 
     for i in range(20):
         Star(star_sprites, star_surface, star_positions) # recreates stars fresh each reset
@@ -168,6 +192,7 @@ def collisions():
             Explosion(explosion_frames, i.rect.center, all_sprites)
             explosion_sound.play()
             player.kill()
+            engine_particles.empty()
             game_active = False
             final_score = (pygame.time.get_ticks() - start_time) // 100 + score_bonus # core relative to run start, not program start
 
@@ -270,6 +295,7 @@ all_sprites = pygame.sprite.Group()
 meteor_sprites = pygame.sprite.Group()
 laser_sprites = pygame.sprite.Group()
 star_sprites = pygame.sprite.Group()
+engine_particles = pygame.sprite.Group()
 
 # reset() # replaces the inline sprite setup block — does the same thing but is now reusable
 
@@ -312,10 +338,12 @@ while running:
         window.fill('#3a2e3f')
         star_sprites.update(dt)
         all_sprites.update(dt)
+        engine_particles.update(dt)
         collisions()
         update_level()
         star_sprites.draw(window)
         all_sprites.draw(window)
+        engine_particles.draw(window)
         display_score()
 
     pygame.display.update()
