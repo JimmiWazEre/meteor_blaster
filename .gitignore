@@ -1,0 +1,19 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# VS Code
+.vscode/
+
+# Logs (if you don't want to commit game logs)
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
