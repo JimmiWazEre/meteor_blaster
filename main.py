@@ -286,25 +286,25 @@ class GameOver():
     def draw(self):
         window.blit(self.text_surf, self.text_rect)
         if not state.entering_name:
-            window.blit(self.prompt_surf, self.prompt_rect)
+            show_prompt = (pygame.time.get_ticks() // 500) % 2 == 0
+            if show_prompt:
+                window.blit(self.prompt_surf, self.prompt_rect)
 
     def input(self, event):
         if event.type == pygame.KEYDOWN and not state.player_alive:
-            if state.entering_name:
-                # name entry mode
+            if state.entering_name: # name entry mode — active until 3 letters are typed
                 if event.key == pygame.K_BACKSPACE:
-                    state.pending_name = state.pending_name[:-1]
-                elif len(state.pending_name) < 3 and event.unicode.isalpha():
-                    state.pending_name += event.unicode.upper()
+                    state.pending_name = state.pending_name[:-1] # remove last character with backspace
+                elif len(state.pending_name) < 3 and event.unicode.isalpha(): # only accept letters, max 3
+                    state.pending_name += event.unicode.upper() # append letter in uppercase
                     for entry in state.scores:
-                        if len(entry["name"]) < 3 or "_" in entry["name"]:
-                            entry["name"] = state.pending_name.ljust(3, "_")
+                        if len(entry["name"]) < 3 or "_" in entry["name"]: # find the placeholder entry
+                            entry["name"] = state.pending_name.ljust(3, "_") # fill typed letters, pad remainder with _
                             break
-                    if len(state.pending_name) == 3:
+                    if len(state.pending_name) == 3: # all 3 letters entered — save and exit name entry mode
                         save_scores(state.scores)
                         state.entering_name = False
-            else:
-                # normal game over mode
+            else: # normal game over mode — waiting for restart
                 if event.key == pygame.K_r:
                     state.reset()
 
@@ -458,31 +458,32 @@ def save_scores(scores):
         json.dump(scores, f)
 
 def check_high_score(scores):
-    if len(scores) < 10 or state.final_score > scores[-1]["score"]:
-        scores.append({"name": "___", "score": state.final_score})
-        scores = sorted(scores, key=lambda x: x["score"], reverse=True)
-        scores = scores[:10] 
+    if len(scores) < 10 or state.final_score > scores[-1]["score"]: # qualifies if top 10 has space or score beats the lowest entry
+        scores.append({"name": "___", "score": state.final_score}) # placeholder until player types their name
+        scores = sorted(scores, key=lambda x: x["score"], reverse=True) # sort highest to lowest by score value
+        scores = scores[:10] # trim to top 10 in case new entry pushed list to 11
         save_scores(scores)
-        state.entering_name = True
-        state.scores = scores
+        state.entering_name = True # flag that game is waiting for player to type their name
+        state.scores = scores # store on state so display_leaderboard can access it
 
 def display_leaderboard():
-    show_cursor = (pygame.time.get_ticks() // 500) % 2 == 0
+    show_cursor = (pygame.time.get_ticks() // 500) % 2 == 0 # toggles every 500ms to create blinking effect
     for i, entry in enumerate(state.scores):
         name = entry["name"]
         if state.entering_name and "_" in name:
-            if show_cursor:
-                name = name  # show the underscores
-            else:
-                name = name.replace("_", " ")  # hide them
-        text = f"{i+1:02}  {name}  {entry['score']}"
+            chars = list(name) # split into characters so we can target a specific position
+            cursor_pos = len(state.pending_name) # next unfilled position is always at this index
+            if not show_cursor:
+                chars[cursor_pos] = " " # hide only the next underscore, not all of them
+            name = "".join(chars) # reassemble into a string
+        text = f"{i+1:02}  {name:<3}  {entry['score']:>6}" # :<3 left-aligns name, :>6 right-aligns score for consistent columns
         text_surf = score_font.render(text, True, (240, 240, 240))
-        text_rect = text_surf.get_frect(center=(WINDOW_WIDTH / 2, 120 + i * 30))
+        text_rect = text_surf.get_frect(midleft=(WINDOW_WIDTH / 2 - 150, 120 + i * 35)) # midleft keeps all rows anchored at same x
         window.blit(text_surf, text_rect)
-        if state.entering_name:
-            prompt_surf = font.render("ENTER YOUR CALLSIGN", True, (240, 240, 240))
-            prompt_rect = prompt_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT - 150))
-            window.blit(prompt_surf, prompt_rect)
+    if state.entering_name: # outside the loop — only needs drawing once
+        prompt_surf = font.render("ENTER YOUR CALLSIGN", True, (240, 240, 240))
+        prompt_rect = prompt_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT - 100))
+        window.blit(prompt_surf, prompt_rect)
 
 # -------------------------------------------------------------
 # initial setup
