@@ -294,7 +294,7 @@ class GameOver():
         if event.type == pygame.KEYDOWN and not state.player_alive:
             if state.entering_name: # name entry mode — active until 3 letters are typed
                 if event.key == pygame.K_BACKSPACE:
-                    state.pending_name = state.pending_name[:-1] # remove last character with backspace
+                    state.pending_name = state.pending_name[:-1]
                 elif len(state.pending_name) < 3 and event.unicode.isalpha(): # only accept letters, max 3
                     state.pending_name += event.unicode.upper() # append letter in uppercase
                     for entry in state.scores:
@@ -304,7 +304,7 @@ class GameOver():
                     if len(state.pending_name) == 3: # all 3 letters entered — save and exit name entry mode
                         save_scores(state.scores)
                         state.entering_name = False
-            else: # normal game over mode — waiting for restart
+            else:
                 if event.key == pygame.K_r:
                     state.reset()
 
@@ -460,11 +460,11 @@ def save_scores(scores):
 def check_high_score(scores):
     if len(scores) < 10 or state.final_score > scores[-1]["score"]: # qualifies if top 10 has space or score beats the lowest entry
         scores.append({"name": "___", "score": state.final_score}) # placeholder until player types their name
-        scores = sorted(scores, key=lambda x: x["score"], reverse=True) # sort highest to lowest by score value
-        scores = scores[:10] # trim to top 10 in case new entry pushed list to 11
+        scores = sorted(scores, key=lambda x: x["score"], reverse=True) # sort highest to lowest by score value, use throwaway lambda function
+        scores = scores[:10]
         save_scores(scores)
-        state.entering_name = True # flag that game is waiting for player to type their name
-        state.scores = scores # store on state so display_leaderboard can access it
+        state.entering_name = True
+        state.scores = scores
 
 def display_leaderboard():
     show_cursor = (pygame.time.get_ticks() // 500) % 2 == 0 # toggles every 500ms to create blinking effect
@@ -480,9 +480,9 @@ def display_leaderboard():
         text_surf = score_font.render(text, True, (240, 240, 240))
         text_rect = text_surf.get_frect(midleft=(WINDOW_WIDTH / 2 - 150, 120 + i * 35)) # midleft keeps all rows anchored at same x
         window.blit(text_surf, text_rect)
-    if state.entering_name: # outside the loop — only needs drawing once
+    if state.entering_name:
         prompt_surf = font.render("ENTER YOUR CALLSIGN", True, (240, 240, 240))
-        prompt_rect = prompt_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT - 100))
+        prompt_rect = prompt_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT - 150))
         window.blit(prompt_surf, prompt_rect)
 
 # -------------------------------------------------------------
