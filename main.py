@@ -209,6 +209,8 @@ class GameState():
         self.player_alive = True
         self.app_running = True
         self.splash_complete = False
+        self.paused = False
+        self.pause_time = 0
 
         # scoring
         self.final_score = 0
@@ -252,6 +254,7 @@ class GameState():
         self.scores.clear()
         self.entering_name = False
         self.pending_name = ""
+        self.paused = False
         for i in range(20):
             Star(self.star_sprites, star_surface, self.star_positions) # recreates stars fresh each reset
         self.player = Player(self.all_sprites) # recreates the player
@@ -262,6 +265,7 @@ class GameState():
         self.level_up_time = 0
         self.current_level = 1
         self.score_bonus = 0
+        self.pause_time = 0
         pygame.time.set_timer(meteor_event, 500)
 
 class SplashScreen():
@@ -368,9 +372,36 @@ def update_level():
         window.blit(text_surf, text_rect)
 
 def quit(event):
-    esc = pygame.key.get_pressed()
-    if event.type == pygame.QUIT or esc[pygame.K_ESCAPE]:
+    if event.type == pygame.QUIT:
         state.app_running = False
+
+def toggle_pause(event):
+    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        if not state.paused:
+            state.pause_time = pygame.time.get_ticks()
+            pygame.time.set_timer(meteor_event, 0)
+        else:
+            pause_duration = pygame.time.get_ticks() - state.pause_time
+            state.start_time += pause_duration
+            state.level_up_time += pause_duration
+            state.player.laser_shoot_time += pause_duration
+            for sprite in state.all_sprites:
+                if hasattr(sprite, "start_time"):
+                    sprite.start_time += pause_duration
+            for sprite in state.meteor_particles:
+                if hasattr(sprite, "start_time"):
+                    sprite.start_time += pause_duration
+            for sprite in state.engine_particles:
+                if hasattr(sprite, "start_time"):
+                    sprite.start_time += pause_duration
+            for sprite in state.star_sprites:
+                if hasattr(sprite, "start_time"):
+                    sprite.start_time += pause_duration
+            for sprite in state.meteor_sprites:
+                if hasattr(sprite, "start_time"):
+                    sprite.start_time += pause_duration
+            pygame.time.set_timer(meteor_event, max(500 - (state.current_level * 50), 100))
+        state.paused = not state.paused
 
 def star_spawn(event):
     # only fires when the star timer event triggers and the player is still alive
@@ -429,14 +460,15 @@ def draw_game_over():
     display_leaderboard()
 
 def draw_game(dt):
-    state.current_time = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
+    if not state.paused:
+        state.current_time = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
+        state.star_sprites.update(dt)
+        state.all_sprites.update(dt)
+        state.engine_particles.update(dt)
+        state.meteor_particles.update(dt)
+        collisions()
+        update_level()
     draw_background()
-    state.star_sprites.update(dt)
-    state.all_sprites.update(dt)
-    state.engine_particles.update(dt)
-    state.meteor_particles.update(dt)
-    collisions()
-    update_level()
     state.star_sprites.draw(window)
     state.all_sprites.draw(window)
     state.engine_particles.draw(window)
@@ -548,6 +580,7 @@ while state.app_running:
 
     for event in pygame.event.get():
         quit(event)
+        toggle_pause(event)
         star_spawn(event)
         meteor_spawn(event)
         splash.input(event)
