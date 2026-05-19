@@ -1,19 +1,41 @@
 """
-pygame docs = https://pyga.me/docs/
+=============================================================
+METEOR BLAST
+=============================================================
+A space shooter built in Python using pygame-ce.
+Player survives an endless meteor storm, shooting meteors
+for bonus score while avoiding collisions. Difficulty
+escalates through levels as meteor speed and spawn rate
+increase.
 
-### Space Shooter ###
+-------------------------------------------------------------
+CONTROLS
+-------------------------------------------------------------
+Arrow keys      Move ship
+Space           Fire laser
+R               Restart (game over screen)
+ESC             Quit
 
-Skills Developed:
-    Standard Game Components: setup, event loop, drawing the game
-    Surfaces (images, text)
-    Frects & Rects (hit boxes around surfaces or maybe just around nothing)
-    Sprites (combining surfaces and frects, apllying these to groups for mass calling)
-    Basic Movement (get_pressed, pygame.K_[something], vectors, delta time, framerate)
-    Collisions
-    Masks (make more precise collisions)
-    Transforming Surfaces (rotate, flip, blur etc etc)
-    Animations (explosions)
-    Sound
+-------------------------------------------------------------
+PYGAME CONCEPTS COVERED
+-------------------------------------------------------------
+Game loop           setup, event loop, drawing
+Surfaces            images, text rendering
+Rects / Frects      hitboxes, positioning
+Sprites & Groups    batch update, draw, collision
+Movement            vectors, delta time, normalisation
+Collisions          rect, mask, group vs group
+Transformations     rotate, scale, rotozoom
+Animations          frame-based explosion sequences
+Particles           engine trail, fade over lifetime
+Sound               sfx, looping music
+OOP                 GameState, SplashScreen, GameOver classes
+Colour              HSV cycling for dynamic background
+
+-------------------------------------------------------------
+REFERENCES
+-------------------------------------------------------------
+pygame-ce docs      https://pyga.me/docs/
 """
 
 import pygame
@@ -21,6 +43,10 @@ from random import randint, uniform
 from colorsys import hsv_to_rgb
 from os.path import dirname, abspath, join
 BASE_DIR = dirname(abspath(__file__))
+
+# -------------------------------------------------------------
+# classes
+# -------------------------------------------------------------
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups):
@@ -101,7 +127,6 @@ class Laser(pygame.sprite.Sprite):
 class Meteor(pygame.sprite.Sprite):
     def __init__(self, meteor_surface, pos, *groups):
         super().__init__(groups)
-
         self.og_image = pygame.transform.scale_by(meteor_surface, uniform(0.5, 2))
         self.image = self.og_image
         self.rect = self.image.get_frect(center = pos)
@@ -164,25 +189,31 @@ class GameState():
         self.player_alive = True
         self.app_running = True
         self.splash_complete = False
+
         # scoring
         self.final_score = 0
         self.score_bonus = 0
         self.current_time = 0
+
         # time
         self.start_time = 0
+
         # level
         self.current_level = 1
         self.previous_level = 0
         self.level_up_time = 0
+
         # groups
         self.all_sprites = pygame.sprite.Group()
         self.meteor_sprites = pygame.sprite.Group()
         self.laser_sprites = pygame.sprite.Group()
         self.star_sprites = pygame.sprite.Group()
         self.engine_particles = pygame.sprite.Group()
+
         # star setup
         self.star_interval = int((WINDOW_HEIGHT / 100) / 20 * 1000)
         self.star_positions = []
+
         # player
         self.player = None
 
@@ -193,12 +224,9 @@ class GameState():
         self.star_sprites.empty()
         self.star_positions.clear()
         self.engine_particles.empty()
-
         for i in range(20):
             Star(self.star_sprites, star_surface, self.star_positions) # recreates stars fresh each reset
-
-        self.player = Player(self.all_sprites) # NEW: recreates the player
-
+        self.player = Player(self.all_sprites) # recreates the player
         self.player_alive = True
         self.final_score = 0 
         self.start_time = pygame.time.get_ticks()
@@ -235,6 +263,10 @@ class GameOver():
         if event.type == pygame.KEYDOWN and not state.player_alive:
             if event.key == pygame.K_r:
                 state.reset()
+
+# -------------------------------------------------------------
+# functions
+# -------------------------------------------------------------
 
 def collisions():
     collision_sprites = pygame.sprite.spritecollide(state.player, state.meteor_sprites, True, pygame.sprite.collide_mask)
@@ -355,22 +387,31 @@ def draw_game(dt):
     state.engine_particles.draw(window)
     display_score()
 
-### initial setup
+# -------------------------------------------------------------
+# initial setup
+# -------------------------------------------------------------
 pygame.init()
+
 # window
 WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), vsync=1)
 pygame.display.set_caption("Meteor Blast")
+
 # game running
 state = GameState()
 clock = pygame.time.Clock()
+
 # meteor spawns
 meteor_event = pygame.event.custom_type()
+
 # star spawns
 star_event = pygame.event.custom_type()
 pygame.time.set_timer(star_event, state.star_interval)
 
-### import
+# -------------------------------------------------------------
+# import assets
+# -------------------------------------------------------------
+
 # images
 splash_surf = pygame.image.load(join(BASE_DIR, "images", "splash.png")).convert()
 star_surface = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "star.png")).convert_alpha(), 2)
@@ -379,6 +420,7 @@ laser_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images"
 explosion_frames = [pygame.image.load(join(BASE_DIR, "images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
 font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 40)
 score_font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 20)
+
 # sound
 laser_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "laser.wav"))
 laser_sound.set_volume(0.1)
@@ -390,9 +432,15 @@ game_music = pygame.mixer.Sound(join(BASE_DIR, "audio", "game_music.wav"))
 game_music.set_volume(0.1)
 game_music.play(loops=-1)
 
-# instantialise
+# -------------------------------------------------------------
+# instantialise pre-loop classes
+# -------------------------------------------------------------
 splash = SplashScreen()
 game_over_screen = GameOver()
+
+# -------------------------------------------------------------
+# game loop
+# -------------------------------------------------------------
 
 while state.app_running:
     dt = clock.tick(60) / 1000
