@@ -305,7 +305,7 @@ def display_score():
     pygame.draw.rect(window, (240, 240, 240), text_rect.inflate(20, 30).move(0, -2), 5, 10)
 
 def update_level():
-    state.current_level = (state.current_time // 200) + 1
+    state.current_level = int((state.current_time / 500) ** 0.7) + 1 # exponential curve: early levels come quickly, later levels take progressively longer to reach
     if state.current_level != state.previous_level:
         state.previous_level = state.current_level
         state.level_up_time = pygame.time.get_ticks()
