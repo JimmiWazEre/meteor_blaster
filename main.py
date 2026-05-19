@@ -59,7 +59,7 @@ class Player(pygame.sprite.Sprite):
 
         # cooldown
         self.can_shoot = True
-        self.laser_shoot_time = 0
+        self.laser_shoot_time = state.game_ticks
         self.cooldown_duration = 300
 
         # mask
@@ -67,7 +67,7 @@ class Player(pygame.sprite.Sprite):
     
     def laser_timer(self):
         if not self.can_shoot:
-            current_time = pygame.time.get_ticks()
+            current_time = state.game_ticks
             if current_time - self.laser_shoot_time >= self.cooldown_duration:
                 self.can_shoot = True
 
@@ -82,9 +82,8 @@ class Player(pygame.sprite.Sprite):
         if recent_keys[pygame.K_SPACE] and self.can_shoot:
             Laser(laser_surf, self.rect.midtop, state.all_sprites, state.laser_sprites)
             self.can_shoot = False
-            self.laser_shoot_time = pygame.time.get_ticks()
+            self.laser_shoot_time = state.game_ticks
             laser_sound.play()
-        
         self.laser_timer()
         x, y = self.rect.midbottom
         for _ in range(8):
@@ -95,7 +94,7 @@ class Star(pygame.sprite.Sprite):
         super().__init__(groups)
         self.image = pygame.transform.scale_by(star_surface, uniform(0.2, 1.0))
         self.speed = 50
-        self.start_time = pygame.time.get_ticks()
+        self.start_time = state.game_ticks
         self.lifetime = int((WINDOW_HEIGHT / self.speed) * 2000)
         self.direction = pygame.Vector2(0, 1)
         if scrolling:
@@ -110,7 +109,7 @@ class Star(pygame.sprite.Sprite):
     
     def update(self, dt):
         self.rect.center += self.direction * self.speed * dt
-        if pygame.time.get_ticks() - self.start_time >= self.lifetime:
+        if state.game_ticks - self.start_time >= self.lifetime:
             self.kill()
 
 class Laser(pygame.sprite.Sprite):
@@ -131,7 +130,7 @@ class Meteor(pygame.sprite.Sprite):
         self.og_image = pygame.transform.scale_by(meteor_surface, uniform(0.5, 2))
         self.image = self.og_image
         self.rect = self.image.get_frect(center = pos)
-        self.start_time = pygame.time.get_ticks()
+        self.start_time = state.game_ticks
         self.lifetime = 3000
         self.direction = pygame.Vector2(uniform(-0.5, 0.5), 1)
         self.speed = randint(200, 400) + (state.current_level * 20)
@@ -141,7 +140,7 @@ class Meteor(pygame.sprite.Sprite):
 
     def update(self, dt):
         self.rect.center += self.direction * self.speed * dt
-        if pygame.time.get_ticks() - self.start_time >= self.lifetime:
+        if state.game_ticks - self.start_time >= self.lifetime:
             self.kill()
         self.rotation += self.rotation_speed * dt
         self.image = pygame.transform.rotozoom(self.og_image, self.rotation, 1)
@@ -154,7 +153,7 @@ class Explosion(pygame.sprite.Sprite):
         self.frame_index = 0
         self.image = self.frames[self.frame_index]
         self.rect = self.image.get_frect(center = pos)
-        self.start_time = pygame.time.get_ticks()
+        self.start_time = state.game_ticks
         self.lifetime = 250
 
     def update(self, dt):
@@ -162,7 +161,7 @@ class Explosion(pygame.sprite.Sprite):
         self.image = self.frames[int(self.frame_index) % len(self.frames)]
         self.image = pygame.transform.scale_by(self.image, 2)
         self.rect = self.image.get_frect(center = self.rect.center)
-        if pygame.time.get_ticks() - self.start_time >= self.lifetime:
+        if state.game_ticks - self.start_time >= self.lifetime:
             self.kill()
 
 class EngineParticle(pygame.sprite.Sprite):
@@ -171,7 +170,7 @@ class EngineParticle(pygame.sprite.Sprite):
         self.image = pygame.Surface((4, 4), pygame.SRCALPHA)
         self.image.fill((255, randint(50, 150), 0))
         self.rect = self.image.get_frect(center = pos)
-        self.start_time = pygame.time.get_ticks()
+        self.start_time = state.game_ticks
         self.lifetime = randint(150, 300)
         self.direction = pygame.Vector2(uniform(-1, 1), 2)
         self.speed = randint(100, 400)
@@ -179,7 +178,7 @@ class EngineParticle(pygame.sprite.Sprite):
 
     def update(self, dt):
         self.rect.center += self.velocity * dt
-        remaining = 1 - (pygame.time.get_ticks() - self.start_time) / self.lifetime
+        remaining = 1 - (state.game_ticks - self.start_time) / self.lifetime
         self.image.set_alpha(int(255 * remaining))
         if remaining <= 0:
             self.kill()
@@ -190,7 +189,7 @@ class MeteorParticle(pygame.sprite.Sprite):
         self.image = pygame.Surface((4, 4), pygame.SRCALPHA)
         self.image.fill((220, 220, 220))
         self.rect = self.image.get_frect(center = pos)
-        self.start_time = pygame.time.get_ticks()
+        self.start_time = state.game_ticks
         self.lifetime = randint(150, 300)
         self.direction = pygame.Vector2(uniform(-1, 1), uniform(-1, 1)).normalize()
         self.speed = randint(400, 800)
@@ -198,13 +197,16 @@ class MeteorParticle(pygame.sprite.Sprite):
 
     def update(self, dt):
         self.rect.center += self.velocity * dt
-        remaining = 1 - (pygame.time.get_ticks() - self.start_time) / self.lifetime
+        remaining = 1 - (state.game_ticks - self.start_time) / self.lifetime
         self.image.set_alpha(int(255 * remaining))
         if remaining <= 0:
             self.kill()
 
 class GameState():
     def __init__(self):
+        # time
+        self.game_ticks = 0
+
         # state flags
         self.player_alive = True
         self.app_running = True
@@ -260,12 +262,12 @@ class GameState():
         self.player = Player(self.all_sprites) # recreates the player
         self.player_alive = True
         self.final_score = 0 
-        self.start_time = pygame.time.get_ticks()
         self.previous_level = 0
         self.level_up_time = 0
         self.current_level = 1
         self.score_bonus = 0
         self.pause_time = 0
+        self.game_ticks = 0
         pygame.time.set_timer(meteor_event, 500)
 
 class SplashScreen():
@@ -325,7 +327,7 @@ def collisions():
             state.player.kill()
             state.engine_particles.empty()
             state.player_alive = False
-            state.final_score = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
+            state.final_score = int(state.game_ticks / 100) + state.score_bonus
             check_high_score(load_scores())
             for _ in range(50):
                 MeteorParticle(i.rect.center, state.meteor_particles)
@@ -363,10 +365,10 @@ def update_level():
     state.current_level = int((state.current_time / 500) ** 0.7) + 1 # exponential curve: early levels come quickly, later levels take progressively longer to reach
     if state.current_level != state.previous_level:
         state.previous_level = state.current_level
-        state.level_up_time = pygame.time.get_ticks()
+        state.level_up_time = state.game_ticks
         pygame.time.set_timer(meteor_event, max(500 - (state.current_level * 50), 100))
 
-    if pygame.time.get_ticks() - state.level_up_time < 2000:
+    if state.game_ticks - state.level_up_time < 2000:
         text_surf = font.render(f"Level {state.current_level}", True, (240, 240, 240))
         text_rect = text_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 - 100))
         window.blit(text_surf, text_rect)
@@ -378,28 +380,12 @@ def quit(event):
 def toggle_pause(event):
     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
         if not state.paused:
-            state.pause_time = pygame.time.get_ticks()
             pygame.time.set_timer(meteor_event, 0)
         else:
-            pause_duration = pygame.time.get_ticks() - state.pause_time
+            pause_duration = state.game_ticks - state.pause_time
             state.start_time += pause_duration
             state.level_up_time += pause_duration
             state.player.laser_shoot_time += pause_duration
-            for sprite in state.all_sprites:
-                if hasattr(sprite, "start_time"):
-                    sprite.start_time += pause_duration
-            for sprite in state.meteor_particles:
-                if hasattr(sprite, "start_time"):
-                    sprite.start_time += pause_duration
-            for sprite in state.engine_particles:
-                if hasattr(sprite, "start_time"):
-                    sprite.start_time += pause_duration
-            for sprite in state.star_sprites:
-                if hasattr(sprite, "start_time"):
-                    sprite.start_time += pause_duration
-            for sprite in state.meteor_sprites:
-                if hasattr(sprite, "start_time"):
-                    sprite.start_time += pause_duration
             pygame.time.set_timer(meteor_event, max(500 - (state.current_level * 50), 100))
         state.paused = not state.paused
 
@@ -461,13 +447,14 @@ def draw_game_over():
 
 def draw_game(dt):
     if not state.paused:
-        state.current_time = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
+        state.current_time = int(state.game_ticks / 100) + state.score_bonus
         state.star_sprites.update(dt)
         state.all_sprites.update(dt)
         state.engine_particles.update(dt)
         state.meteor_particles.update(dt)
         collisions()
         update_level()
+        state.game_ticks += dt * 1000
     draw_background()
     state.star_sprites.draw(window)
     state.all_sprites.draw(window)
@@ -494,7 +481,6 @@ def check_high_score(scores):
         scores.append({"name": "___", "score": state.final_score}) # placeholder until player types their name
         scores = sorted(scores, key=lambda x: x["score"], reverse=True) # sort highest to lowest by score value, use throwaway lambda function
         scores = scores[:10]
-        save_scores(scores)
         state.entering_name = True
         state.scores = scores
 
