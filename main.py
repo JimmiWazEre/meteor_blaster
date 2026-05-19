@@ -237,7 +237,6 @@ class GameOver():
                 state.reset()
 
 def collisions():
-
     collision_sprites = pygame.sprite.spritecollide(state.player, state.meteor_sprites, True, pygame.sprite.collide_mask)
     if collision_sprites:
         for i in collision_sprites:
@@ -291,13 +290,27 @@ def quit(event):
         state.app_running = False
 
 def star_spawn(event):
+    # only fires when the star timer event triggers and the player is still alive
+    # stars stop spawning on game over to preserve the freeze frame effect
     if event.type == star_event and state.player_alive:
+
+        # build a list of the x positions of all currently live stars
+        # used to prevent new stars spawning too close to existing ones horizontally
         existing_x = [s.rect.centerx for s in state.star_sprites if isinstance(s, Star)]
+
+        # pick a random x position within the screen bounds
         x = randint(50, WINDOW_WIDTH - 50)
         attempts = 0
+
+        # keep trying new x positions until one is found that is at least 100px
+        # from every existing star, or until 30 attempts have been made
+        # the attempt cap prevents an infinite loop if the screen is too crowded
         while any(abs(x - ex) < 100 for ex in existing_x) and attempts < 30:
             x = randint(50, WINDOW_WIDTH - 50)
             attempts += 1
+
+        # spawn the star above the screen at the validated x position
+        # scrolling=True skips the padding check and places it off the top of the screen
         Star(state.star_sprites, star_surface, state.star_positions, scrolling=True, spawn_x=x)
 
 def meteor_spawn(event):
@@ -306,8 +319,19 @@ def meteor_spawn(event):
         Meteor(meteor_surf, (x, y), state.all_sprites, state.meteor_sprites)
 
 def draw_background():
+    # calculate a hue value that slowly cycles from 0.0 to 1.0 over 50 seconds
+    # % 1.0 wraps it back to 0.0 once it reaches 1.0, creating a continuous loop
     hue = (pygame.time.get_ticks() / 50000) % 1.0
+
+    # convert the hue to RGB using HSV colour model:
+    # hue = the colour (0.0-1.0 cycles through the full colour wheel)
+    # 0.6 = saturation (how vivid the colour is — 1.0 is fully vivid, 0.0 is grey)
+    # 0.15 = value/brightness (kept low to maintain a dark background)
+    # hsv_to_rgb returns three floats between 0.0 and 1.0
     r, g, b = hsv_to_rgb(hue, 0.6, 0.15)
+
+    # pygame expects RGB values as integers between 0-255
+    # multiply each float by 255 and convert to int before passing to fill
     window.fill((int(r * 255), int(g * 255), int(b * 255)))
 
 def draw_game_over():
