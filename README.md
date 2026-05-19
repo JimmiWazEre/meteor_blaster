@@ -6,12 +6,6 @@ Survive an endless meteor storm, shoot down meteors for bonus score, and collect
 
 ---
 
-## Screenshots
-
-*Coming soon*
-
----
-
 ## Controls
 
 | Key | Action |
@@ -120,4 +114,4 @@ All audio assets (sound effects and music) are sourced from Clear Code's tutoria
 
 ## About
 
-Built as a learning project to develop Python and pygame skills through hands-on game development. Covers sprites, groups, collision detection, particle systems, OOP design patterns, file I/O, and a custom pause-aware game clock.
+Built as a learning project to develop Python and pygame skills through hands-on game development.
