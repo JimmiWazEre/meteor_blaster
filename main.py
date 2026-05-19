@@ -183,6 +183,25 @@ class EngineParticle(pygame.sprite.Sprite):
         if remaining <= 0:
             self.kill()
 
+class MeteorParticle(pygame.sprite.Sprite):
+    def __init__(self, pos, groups):
+        super().__init__(groups)
+        self.image = pygame.Surface((4, 4), pygame.SRCALPHA)
+        self.image.fill((220, 220, 220))
+        self.rect = self.image.get_frect(center = pos)
+        self.start_time = pygame.time.get_ticks()
+        self.lifetime = randint(150, 300)
+        self.direction = pygame.Vector2(uniform(-1, 1), uniform(-1, 1)).normalize()
+        self.speed = randint(400, 800)
+        self.velocity = pygame.Vector2(uniform(-1, 1), uniform(-1, 1)).normalize() * self.speed
+
+    def update(self, dt):
+        self.rect.center += self.velocity * dt
+        remaining = 1 - (pygame.time.get_ticks() - self.start_time) / self.lifetime
+        self.image.set_alpha(int(255 * remaining))
+        if remaining <= 0:
+            self.kill()
+
 class GameState():
     def __init__(self):
         # state flags
@@ -209,6 +228,7 @@ class GameState():
         self.laser_sprites = pygame.sprite.Group()
         self.star_sprites = pygame.sprite.Group()
         self.engine_particles = pygame.sprite.Group()
+        self.meteor_particles = pygame.sprite.Group()
 
         # star setup
         self.star_interval = int((WINDOW_HEIGHT / 100) / 20 * 1000)
@@ -224,6 +244,7 @@ class GameState():
         self.star_sprites.empty()
         self.star_positions.clear()
         self.engine_particles.empty()
+        self.meteor_particles.empty()
         for i in range(20):
             Star(self.star_sprites, star_surface, self.star_positions) # recreates stars fresh each reset
         self.player = Player(self.all_sprites) # recreates the player
@@ -278,6 +299,8 @@ def collisions():
             state.engine_particles.empty()
             state.player_alive = False
             state.final_score = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus # core relative to run start, not program start
+            for _ in range(50):
+                MeteorParticle(i.rect.center, state.meteor_particles)
 
     for laser in state.laser_sprites:
         collision_sprites = pygame.sprite.spritecollide(laser, state.meteor_sprites, True)
@@ -287,6 +310,8 @@ def collisions():
                 Explosion(explosion_frames, i.rect.center, state.all_sprites)
                 explosion_sound.play()
                 state.score_bonus += 20
+            for _ in range(50):
+                MeteorParticle(i.rect.center, state.meteor_particles)
 
     meteors = list(state.meteor_sprites)
     for i, meteor1 in enumerate(meteors):
@@ -297,7 +322,9 @@ def collisions():
                 explosion_sound.play()
                 meteor1.kill()
                 meteor2.kill()
-
+                for _ in range(50):
+                        MeteorParticle(meteor1.rect.center, state.meteor_particles)
+                        MeteorParticle(meteor2.rect.center, state.meteor_particles)
 def display_score():
     text_surf = font.render(str(state.current_time), True, (240, 240, 240))
     text_rect = text_surf.get_frect(midbottom = (WINDOW_WIDTH / 2, WINDOW_HEIGHT - 50))
@@ -380,11 +407,13 @@ def draw_game(dt):
     state.star_sprites.update(dt)
     state.all_sprites.update(dt)
     state.engine_particles.update(dt)
+    state.meteor_particles.update(dt)
     collisions()
     update_level()
     state.star_sprites.draw(window)
     state.all_sprites.draw(window)
     state.engine_particles.draw(window)
+    state.meteor_particles.draw(window)
     display_score()
 
 # -------------------------------------------------------------
