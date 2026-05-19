@@ -61,6 +61,7 @@ class Player(pygame.sprite.Sprite):
         self.can_shoot = True
         self.laser_shoot_time = state.game_ticks
         self.cooldown_duration = 300
+        self.default_cooldown = 300
 
         # mask
         self.mask = pygame.mask.from_surface(self.image)
@@ -212,7 +213,6 @@ class GameState():
         self.app_running = True
         self.splash_complete = False
         self.paused = False
-        self.pause_time = 0
 
         # scoring
         self.final_score = 0
@@ -221,9 +221,6 @@ class GameState():
         self.entering_name = False
         self.scores = []
         self.pending_name = ""
-
-        # time
-        self.start_time = 0
 
         # level
         self.current_level = 1
@@ -245,6 +242,12 @@ class GameState():
         # player
         self.player = None
 
+        # powerups
+        self.powerup_sprites = pygame.sprite.Group()
+        self.shield_sprites = pygame.sprite.Group()
+        self.fast_fire_active = False
+        self.fast_fire_end_time = 0
+
     def reset(self):
         self.all_sprites.empty()
         self.meteor_sprites.empty()
@@ -254,6 +257,8 @@ class GameState():
         self.engine_particles.empty()
         self.meteor_particles.empty()
         self.scores.clear()
+        self.powerup_sprites.empty()
+        self.shield_sprites.empty()
         self.entering_name = False
         self.pending_name = ""
         self.paused = False
@@ -266,8 +271,9 @@ class GameState():
         self.level_up_time = 0
         self.current_level = 1
         self.score_bonus = 0
-        self.pause_time = 0
         self.game_ticks = 0
+        self.fast_fire_active = False
+        self.fast_fire_end_time = 0
         pygame.time.set_timer(meteor_event, 500)
 
 class SplashScreen():
@@ -314,6 +320,45 @@ class GameOver():
                 if event.key == pygame.K_r:
                     state.reset()
 
+class PowerUp(pygame.sprite.Sprite):
+    def __init__(self, pos, speed, groups):
+        super().__init__(groups)
+        self.image = pygame.Surface((1, 1))  # placeholder, overwritten by subclass
+        self.rect = self.image.get_frect(center=pos)
+        self.speed = speed
+
+    def update(self, dt):
+        self.rect.centery += self.speed * dt
+        if self.rect.top > WINDOW_HEIGHT:
+            self.kill()
+
+class ShieldPowerUp(PowerUp):
+    def __init__(self, pos, speed, groups):
+        super().__init__(pos, speed, groups)
+        self.image = shield_surf
+        self.rect = self.image.get_frect(center=self.rect.center)
+
+class BombPowerUp(PowerUp):
+    def __init__(self, pos, speed, groups):
+        super().__init__(pos, speed, groups)
+        self.image = bomb_surf
+        self.rect = self.image.get_frect(center=self.rect.center)
+
+class FastFirePowerUp(PowerUp):
+    def __init__(self, pos, speed, groups):
+        super().__init__(pos, speed, groups)
+        self.image = fastfire_surf
+        self.rect = self.image.get_frect(center=self.rect.center)
+
+class ShieldSprite(pygame.sprite.Sprite):
+    def __init__(self, *groups):
+        super().__init__(*groups)
+        self.image = shield_sprite_surf
+        self.rect = self.image.get_frect(center=state.player.rect.center)
+
+    def update(self, dt):
+        self.rect.center = state.player.rect.center
+
 # -------------------------------------------------------------
 # functions
 # -------------------------------------------------------------
@@ -340,8 +385,16 @@ def collisions():
                 Explosion(explosion_frames, i.rect.center, state.all_sprites)
                 explosion_sound.play()
                 state.score_bonus += 20
-            for _ in range(50):
-                MeteorParticle(i.rect.center, state.meteor_particles)
+                for _ in range(50):
+                    MeteorParticle(i.rect.center, state.meteor_particles)
+                if randint(1, 20) == 1:
+                    powerup_type = randint(0, 2)
+                    if powerup_type == 0:
+                        ShieldPowerUp(i.rect.center, i.speed * 0.3, state.powerup_sprites)
+                    elif powerup_type == 1:
+                        BombPowerUp(i.rect.center, i.speed * 0.3, state.powerup_sprites)
+                    else:
+                        FastFirePowerUp(i.rect.center, i.speed * 0.3, state.powerup_sprites)
 
     meteors = list(state.meteor_sprites)
     for i, meteor1 in enumerate(meteors):
@@ -355,6 +408,39 @@ def collisions():
                 for _ in range(50):
                         MeteorParticle(meteor1.rect.center, state.meteor_particles)
                         MeteorParticle(meteor2.rect.center, state.meteor_particles)
+
+    for shield in list(state.shield_sprites):
+        hit_meteors = pygame.sprite.spritecollide(shield, state.meteor_sprites, True)
+        if hit_meteors:
+            shield.kill()
+            for meteor in hit_meteors:
+                Explosion(explosion_frames, meteor.rect.center, state.all_sprites)
+                explosion_sound.play()
+                for _ in range(50):
+                    MeteorParticle(meteor.rect.center, state.meteor_particles)
+
+    for powerup in list(state.powerup_sprites):
+        if pygame.sprite.collide_rect(state.player, powerup):
+            if isinstance(powerup, ShieldPowerUp):
+                ShieldSprite(state.all_sprites, state.shield_sprites)
+            elif isinstance(powerup, BombPowerUp):
+                for meteor in list(state.meteor_sprites):
+                    Explosion(explosion_frames, meteor.rect.center, state.all_sprites)
+                    explosion_sound.play()
+                    for _ in range(50):
+                        MeteorParticle(meteor.rect.center, state.meteor_particles)
+                    meteor.kill()
+            elif isinstance(powerup, FastFirePowerUp):
+                state.player.cooldown_duration = 100
+                state.fast_fire_end_time = state.game_ticks + 10000
+                state.fast_fire_active = True
+            powerup.kill()
+
+def update_powerups():
+    if state.fast_fire_active and state.game_ticks > state.fast_fire_end_time:
+        state.player.cooldown_duration = state.player.default_cooldown
+        state.fast_fire_active = False
+
 def display_score():
     text_surf = font.render(str(state.current_time), True, (240, 240, 240))
     text_rect = text_surf.get_frect(midbottom = (WINDOW_WIDTH / 2, WINDOW_HEIGHT - 50))
@@ -382,10 +468,6 @@ def toggle_pause(event):
         if not state.paused:
             pygame.time.set_timer(meteor_event, 0)
         else:
-            pause_duration = state.game_ticks - state.pause_time
-            state.start_time += pause_duration
-            state.level_up_time += pause_duration
-            state.player.laser_shoot_time += pause_duration
             pygame.time.set_timer(meteor_event, max(500 - (state.current_level * 50), 100))
         state.paused = not state.paused
 
@@ -452,14 +534,19 @@ def draw_game(dt):
         state.all_sprites.update(dt)
         state.engine_particles.update(dt)
         state.meteor_particles.update(dt)
+        state.powerup_sprites.update(dt)
+        state.shield_sprites.update(dt)
         collisions()
         update_level()
+        update_powerups()
         state.game_ticks += dt * 1000
     draw_background()
     state.star_sprites.draw(window)
     state.all_sprites.draw(window)
     state.engine_particles.draw(window)
     state.meteor_particles.draw(window)
+    state.powerup_sprites.draw(window)
+    state.shield_sprites.draw(window)
     display_score()
 
 def load_scores():
@@ -536,6 +623,11 @@ laser_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images"
 explosion_frames = [pygame.image.load(join(BASE_DIR, "images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
 font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 40)
 score_font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 20)
+shield_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "shield_powerup.png")).convert_alpha(), 2)
+bomb_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "nuke_powerup.png")).convert_alpha(), 2)
+fastfire_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "laser_powerup.png")).convert_alpha(), 2)
+shield_sprite_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "shield.png")).convert_alpha(), 4)
+shield_sprite_surf.set_alpha(128) 
 
 # sound
 laser_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "laser.wav"))
