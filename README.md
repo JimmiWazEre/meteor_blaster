@@ -40,10 +40,22 @@ Power-ups drop randomly from destroyed meteors.
 - Python 3.10+
 - pygame-ce
 
-Install dependencies:
+---
+
+## Setup
 
 ```bash
+git clone https://github.com/JimmiWazEre/meteor_blast.git
+cd meteor_blast
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+On Windows, replace the `source` line with:
+
+```bash
+.venv\Scripts\activate
 ```
 
 ---
