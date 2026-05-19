@@ -1,4 +1,5 @@
 """
+
 =============================================================
 METEOR BLAST
 =============================================================
@@ -6,15 +7,22 @@ A space shooter built in Python using pygame-ce.
 Player survives an endless meteor storm, shooting meteors
 for bonus score while avoiding collisions. Difficulty
 escalates through levels as meteor speed and spawn rate
-increase.
+increase. Destroyed meteors occasionally drop power-ups.
 
 -------------------------------------------------------------
 CONTROLS
 -------------------------------------------------------------
 Arrow keys      Move ship
 Space           Fire laser
+ESC             Pause / unpause
 R               Restart (game over screen)
-ESC             Quit
+
+-------------------------------------------------------------
+POWER-UPS
+-------------------------------------------------------------
+Shield          Absorbs one meteor hit
+Nuke            Destroys all meteors on screen
+Fast Fire       Reduces laser cooldown for 10 seconds
 
 -------------------------------------------------------------
 PYGAME CONCEPTS COVERED
@@ -27,15 +35,19 @@ Movement            vectors, delta time, normalisation
 Collisions          rect, mask, group vs group
 Transformations     rotate, scale, rotozoom
 Animations          frame-based explosion sequences
-Particles           engine trail, fade over lifetime
+Particles           engine trail, meteor debris, fade over lifetime
 Sound               sfx, looping music
-OOP                 GameState, SplashScreen, GameOver classes
+OOP                 GameState, SplashScreen, GameOver, PowerUp classes
 Colour              HSV cycling for dynamic background
+Inheritance         PowerUp base class with ShieldPowerUp, BombPowerUp, FastFirePowerUp subclasses
+File I/O            JSON high score persistence
+Game clock          Pause-aware game_ticks replacing system clock for sprite timers
 
 -------------------------------------------------------------
 REFERENCES
 -------------------------------------------------------------
 pygame-ce docs      https://pyga.me/docs/
+
 """
 
 import pygame
@@ -56,14 +68,10 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
         self.direction = pygame.math.Vector2()
         self.speed = 350
-
-        # cooldown
         self.can_shoot = True
         self.laser_shoot_time = state.game_ticks
         self.cooldown_duration = 300
         self.default_cooldown = 300
-
-        # mask
         self.mask = pygame.mask.from_surface(self.image)
     
     def laser_timer(self):
