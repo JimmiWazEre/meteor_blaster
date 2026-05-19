@@ -456,12 +456,13 @@ def display_score():
     pygame.draw.rect(window, (240, 240, 240), text_rect.inflate(20, 30).move(0, -2), 5, 10)
 
 def update_level():
-    state.current_level = int((state.current_time / 500) ** 0.7) + 1 # exponential curve: early levels come quickly, later levels take progressively longer to reach
+    state.current_level = int((state.current_time / 500) ** 0.7) + 1
     if state.current_level != state.previous_level:
         state.previous_level = state.current_level
         state.level_up_time = state.game_ticks
         pygame.time.set_timer(meteor_event, max(500 - (state.current_level * 50), 100))
 
+def draw_level_text():
     if state.game_ticks - state.level_up_time < 2000:
         text_surf = font.render(f"Level {state.current_level}", True, (240, 240, 240))
         text_rect = text_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 - 100))
@@ -555,6 +556,7 @@ def draw_game(dt):
     state.meteor_particles.draw(window)
     state.powerup_sprites.draw(window)
     state.shield_sprites.draw(window)
+    draw_level_text()
     display_score()
 
 def load_scores():
