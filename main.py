@@ -161,8 +161,9 @@ class EngineParticle(pygame.sprite.Sprite):
 class GameState():
     def __init__(self):
         # state flags
-        self.game_active = True
-        self.game_started = False
+        self.player_alive = True
+        self.app_running = True
+        self.splash_complete = False
         # scoring
         self.final_score = 0
         self.score_bonus = 0
@@ -179,7 +180,8 @@ class GameState():
         self.laser_sprites = pygame.sprite.Group()
         self.star_sprites = pygame.sprite.Group()
         self.engine_particles = pygame.sprite.Group()
-        # star pos
+        # star setup
+        self.star_interval = int((WINDOW_HEIGHT / 100) / 20 * 1000)
         self.star_positions = []
         # player
         self.player = None
@@ -197,7 +199,7 @@ class GameState():
 
         self.player = Player(self.all_sprites) # NEW: recreates the player
 
-        self.game_active = True
+        self.player_alive = True
         self.final_score = 0 
         self.start_time = pygame.time.get_ticks()
         self.previous_level = 0
@@ -205,6 +207,34 @@ class GameState():
         self.current_level = 1
         self.score_bonus = 0
         pygame.time.set_timer(meteor_event, 500)
+
+class SplashScreen():
+    def __init__(self):
+        self.scaled = pygame.transform.scale(splash_surf, (WINDOW_WIDTH, WINDOW_HEIGHT))
+        
+    def draw(self):
+        window.blit(self.scaled, (0, 0))
+
+    def input(self, event):
+        if event.type == pygame.KEYDOWN and not state.splash_complete:
+            state.splash_complete = True
+            state.reset()
+
+class GameOver():
+    def __init__(self):
+        self.text_surf = font.render("GAME OVER", True, (240, 240, 240))
+        self.text_rect = self.text_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
+        self.prompt_surf = font.render("Press R to play again", True, (240, 240, 240))
+        self.prompt_rect = self.prompt_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 60))
+
+    def draw(self):
+        window.blit(self.text_surf, self.text_rect)
+        window.blit(self.prompt_surf, self.prompt_rect)
+
+    def input(self, event):
+        if event.type == pygame.KEYDOWN and not state.player_alive:
+            if event.key == pygame.K_r:
+                state.reset()
 
 def collisions():
 
@@ -215,7 +245,7 @@ def collisions():
             explosion_sound.play()
             state.player.kill()
             state.engine_particles.empty()
-            state.game_active = False
+            state.player_alive = False
             state.final_score = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus # core relative to run start, not program start
 
     for laser in state.laser_sprites:
@@ -243,14 +273,6 @@ def display_score():
     window.blit(text_surf, text_rect)
     pygame.draw.rect(window, (240, 240, 240), text_rect.inflate(20, 30).move(0, -2), 5, 10)
 
-def game_over():
-    text_surf = font.render("GAME OVER", True, (240, 240, 240))
-    text_rect = text_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
-    window.blit(text_surf, text_rect)
-    prompt_surf = font.render("Press R to play again", True, (240, 240, 240)) # restart prompt
-    prompt_rect = prompt_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 60))
-    window.blit(prompt_surf, prompt_rect) # draws the prompt below the game over message
-
 def update_level():
     state.current_level = (state.current_time // 200) + 1
     if state.current_level != state.previous_level:
@@ -263,25 +285,69 @@ def update_level():
         text_rect = text_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 - 100))
         window.blit(text_surf, text_rect)
 
-def splash_screen():
-    scaled = pygame.transform.scale(splash_surf, (WINDOW_WIDTH, WINDOW_HEIGHT))
-    window.blit(scaled, (0, 0))
+def quit(event):
+    esc = pygame.key.get_pressed()
+    if event.type == pygame.QUIT or esc[pygame.K_ESCAPE]:
+        state.app_running = False
 
-# general setup
+def star_spawn(event):
+    if event.type == star_event and state.player_alive:
+        existing_x = [s.rect.centerx for s in state.star_sprites if isinstance(s, Star)]
+        x = randint(50, WINDOW_WIDTH - 50)
+        attempts = 0
+        while any(abs(x - ex) < 100 for ex in existing_x) and attempts < 30:
+            x = randint(50, WINDOW_WIDTH - 50)
+            attempts += 1
+        Star(state.star_sprites, star_surface, state.star_positions, scrolling=True, spawn_x=x)
+
+def meteor_spawn(event):
+    if event.type == meteor_event and state.player_alive:
+        x, y = randint(0, WINDOW_WIDTH), randint(-200, -100)
+        Meteor(meteor_surf, (x, y), state.all_sprites, state.meteor_sprites)
+
+def draw_background():
+    hue = (pygame.time.get_ticks() / 50000) % 1.0
+    r, g, b = hsv_to_rgb(hue, 0.6, 0.15)
+    window.fill((int(r * 255), int(g * 255), int(b * 255)))
+
+def draw_game_over():
+    state.current_time = state.final_score
+    draw_background()
+    state.star_sprites.draw(window)
+    state.all_sprites.draw(window)
+    display_score()
+    game_over_screen.draw()
+
+def draw_game(dt):
+    state.current_time = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
+    draw_background()
+    state.star_sprites.update(dt)
+    state.all_sprites.update(dt)
+    state.engine_particles.update(dt)
+    collisions()
+    update_level()
+    state.star_sprites.draw(window)
+    state.all_sprites.draw(window)
+    state.engine_particles.draw(window)
+    display_score()
+
+### initial setup
 pygame.init()
+# window
 WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), vsync=1)
 pygame.display.set_caption("Meteor Blast")
-running = True
+# game running
+state = GameState()
 clock = pygame.time.Clock()
+# meteor spawns
 meteor_event = pygame.event.custom_type()
-STAR_SPEED = 100
-star_interval = int((WINDOW_HEIGHT / STAR_SPEED) / 20 * 1000)
+# star spawns
 star_event = pygame.event.custom_type()
-pygame.time.set_timer(star_event, star_interval)
-state=GameState()
+pygame.time.set_timer(star_event, state.star_interval)
 
-# import
+### import
+# images
 splash_surf = pygame.image.load(join(BASE_DIR, "images", "splash.png")).convert()
 star_surface = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "star.png")).convert_alpha(), 2)
 meteor_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images", "meteor.png")).convert_alpha(), 3)
@@ -289,7 +355,7 @@ laser_surf = pygame.transform.scale_by(pygame.image.load(join(BASE_DIR, "images"
 explosion_frames = [pygame.image.load(join(BASE_DIR, "images", "explosion", f"{i}.png")).convert_alpha() for i in range(17)]
 font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 40)
 score_font = pygame.font.Font(join(BASE_DIR, "images", "PressStart2P-Regular.ttf"), 20)
-
+# sound
 laser_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "laser.wav"))
 laser_sound.set_volume(0.1)
 explosion_sound = pygame.mixer.Sound(join(BASE_DIR, "audio", "explosion.wav"))
@@ -300,55 +366,25 @@ game_music = pygame.mixer.Sound(join(BASE_DIR, "audio", "game_music.wav"))
 game_music.set_volume(0.1)
 game_music.play(loops=-1)
 
-while running:
-    dt = clock.tick(60) / 1000
-    
-    for event in pygame.event.get():
-        esc = pygame.key.get_pressed()
-        if event.type == pygame.QUIT or esc[pygame.K_ESCAPE]:
-            running = False
-        if event.type == pygame.KEYDOWN and not state.game_started:
-            state.game_started = True
-            state.reset()
-        if event.type == star_event and state.game_active:
-            existing_x = [s.rect.centerx for s in state.star_sprites if isinstance(s, Star)]
-            x = randint(50, WINDOW_WIDTH - 50)
-            attempts = 0
-            while any(abs(x - ex) < 100 for ex in existing_x) and attempts < 30:
-                x = randint(50, WINDOW_WIDTH - 50)
-                attempts += 1
-            Star(state.star_sprites, star_surface, state.star_positions, scrolling=True, spawn_x=x)
-        if event.type == meteor_event and state.game_active: # stops spawning meteors after game over
-            x, y = randint(0, WINDOW_WIDTH), randint(-200, -100)
-            Meteor(meteor_surf, (x, y), state.all_sprites, state.meteor_sprites)
-        if event.type == pygame.KEYDOWN and not state.game_active: # listens for R key on game over screen
-            if event.key == pygame.K_r:
-                state.reset() # calls reset to restart the game
+# instantialise
+splash = SplashScreen()
+game_over_screen = GameOver()
 
-    if not state.game_started:
-        splash_screen()
-    elif not state.game_active:
-        state.current_time = state.final_score
-        hue = (pygame.time.get_ticks() / 50000) % 1.0  # slow cycle through full hue range
-        r, g, b = hsv_to_rgb(hue, 0.6, 0.15)  # saturation 0.6, value 0.25 keeps it dark
-        window.fill((int(r * 255), int(g * 255), int(b * 255)))
-        state.star_sprites.draw(window)
-        state.all_sprites.draw(window)
-        display_score()
-        game_over()
+while state.app_running:
+    dt = clock.tick(60) / 1000
+
+    for event in pygame.event.get():
+        quit(event)
+        star_spawn(event)
+        meteor_spawn(event)
+        splash.input(event)
+        game_over_screen.input(event)
+
+    if not state.splash_complete:
+        splash.draw()
+    elif not state.player_alive:
+        draw_game_over()
     else:
-        state.current_time = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
-        hue = (pygame.time.get_ticks() / 50000) % 1.0  # slow cycle through full hue range
-        r, g, b = hsv_to_rgb(hue, 0.6, 0.15)  # saturation 0.6, value 0.25 keeps it dark
-        window.fill((int(r * 255), int(g * 255), int(b * 255)))
-        state.star_sprites.update(dt)
-        state.all_sprites.update(dt)
-        state.engine_particles.update(dt)
-        collisions()
-        update_level()
-        state.star_sprites.draw(window)
-        state.all_sprites.draw(window)
-        state.engine_particles.draw(window)
-        display_score()
+        draw_game(dt)
 
     pygame.display.update()
