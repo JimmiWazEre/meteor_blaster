@@ -42,6 +42,7 @@ import pygame
 from random import randint, uniform
 from colorsys import hsv_to_rgb
 from os.path import dirname, abspath, join
+import json
 BASE_DIR = dirname(abspath(__file__))
 
 # -------------------------------------------------------------
@@ -213,6 +214,9 @@ class GameState():
         self.final_score = 0
         self.score_bonus = 0
         self.current_time = 0
+        self.entering_name = False
+        self.scores = []
+        self.pending_name = ""
 
         # time
         self.start_time = 0
@@ -245,6 +249,9 @@ class GameState():
         self.star_positions.clear()
         self.engine_particles.empty()
         self.meteor_particles.empty()
+        self.scores.clear()
+        self.entering_name = False
+        self.pending_name = ""
         for i in range(20):
             Star(self.star_sprites, star_surface, self.star_positions) # recreates stars fresh each reset
         self.player = Player(self.all_sprites) # recreates the player
@@ -272,18 +279,34 @@ class SplashScreen():
 class GameOver():
     def __init__(self):
         self.text_surf = font.render("GAME OVER", True, (240, 240, 240))
-        self.text_rect = self.text_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
+        self.text_rect = self.text_surf.get_frect(center = (WINDOW_WIDTH / 2, 50))
         self.prompt_surf = font.render("Press R to play again", True, (240, 240, 240))
-        self.prompt_rect = self.prompt_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2 + 60))
+        self.prompt_rect = self.prompt_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT - 150))
 
     def draw(self):
         window.blit(self.text_surf, self.text_rect)
-        window.blit(self.prompt_surf, self.prompt_rect)
+        if not state.entering_name:
+            window.blit(self.prompt_surf, self.prompt_rect)
 
     def input(self, event):
         if event.type == pygame.KEYDOWN and not state.player_alive:
-            if event.key == pygame.K_r:
-                state.reset()
+            if state.entering_name:
+                # name entry mode
+                if event.key == pygame.K_BACKSPACE:
+                    state.pending_name = state.pending_name[:-1]
+                elif len(state.pending_name) < 3 and event.unicode.isalpha():
+                    state.pending_name += event.unicode.upper()
+                    for entry in state.scores:
+                        if len(entry["name"]) < 3 or "_" in entry["name"]:
+                            entry["name"] = state.pending_name.ljust(3, "_")
+                            break
+                    if len(state.pending_name) == 3:
+                        save_scores(state.scores)
+                        state.entering_name = False
+            else:
+                # normal game over mode
+                if event.key == pygame.K_r:
+                    state.reset()
 
 # -------------------------------------------------------------
 # functions
@@ -298,7 +321,8 @@ def collisions():
             state.player.kill()
             state.engine_particles.empty()
             state.player_alive = False
-            state.final_score = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus # core relative to run start, not program start
+            state.final_score = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
+            check_high_score(load_scores())
             for _ in range(50):
                 MeteorParticle(i.rect.center, state.meteor_particles)
 
@@ -395,11 +419,14 @@ def draw_background():
 
 def draw_game_over():
     state.current_time = state.final_score
+    if not state.scores:
+        state.scores = load_scores()
     draw_background()
     state.star_sprites.draw(window)
     state.all_sprites.draw(window)
     display_score()
     game_over_screen.draw()
+    display_leaderboard()
 
 def draw_game(dt):
     state.current_time = (pygame.time.get_ticks() - state.start_time) // 100 + state.score_bonus
@@ -415,6 +442,47 @@ def draw_game(dt):
     state.engine_particles.draw(window)
     state.meteor_particles.draw(window)
     display_score()
+
+def load_scores():
+    try:
+        with open(SCORES_FILE, "r") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+            return []
+    except:
+        return []
+
+def save_scores(scores):
+    with open(SCORES_FILE, "w") as f:
+        json.dump(scores, f)
+
+def check_high_score(scores):
+    if len(scores) < 10 or state.final_score > scores[-1]["score"]:
+        scores.append({"name": "___", "score": state.final_score})
+        scores = sorted(scores, key=lambda x: x["score"], reverse=True)
+        scores = scores[:10] 
+        save_scores(scores)
+        state.entering_name = True
+        state.scores = scores
+
+def display_leaderboard():
+    show_cursor = (pygame.time.get_ticks() // 500) % 2 == 0
+    for i, entry in enumerate(state.scores):
+        name = entry["name"]
+        if state.entering_name and "_" in name:
+            if show_cursor:
+                name = name  # show the underscores
+            else:
+                name = name.replace("_", " ")  # hide them
+        text = f"{i+1:02}  {name}  {entry['score']}"
+        text_surf = score_font.render(text, True, (240, 240, 240))
+        text_rect = text_surf.get_frect(center=(WINDOW_WIDTH / 2, 120 + i * 30))
+        window.blit(text_surf, text_rect)
+        if state.entering_name:
+            prompt_surf = font.render("ENTER YOUR CALLSIGN", True, (240, 240, 240))
+            prompt_rect = prompt_surf.get_frect(center=(WINDOW_WIDTH / 2, WINDOW_HEIGHT - 150))
+            window.blit(prompt_surf, prompt_rect)
 
 # -------------------------------------------------------------
 # initial setup
@@ -460,6 +528,9 @@ damage_sound.set_volume(0.1)
 game_music = pygame.mixer.Sound(join(BASE_DIR, "audio", "game_music.wav"))
 game_music.set_volume(0.1)
 game_music.play(loops=-1)
+
+# scores
+SCORES_FILE = join(BASE_DIR, "scores.json")
 
 # -------------------------------------------------------------
 # instantialise pre-loop classes
