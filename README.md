@@ -38,21 +38,41 @@ Power-ups drop randomly from destroyed meteors.
 
 ## Setup
 
+### Prerequisites
+
+**Linux/Mac** — Python and Git are likely already installed. Check with:
 ```bash
+python3 --version
+git --version
+```
+
+**Windows** — if not already installed, open Command Prompt and run:
+```
+winget install Python.Python.3
+winget install Git.Git
+```
+
+### Install and run
+
+```bash
+cd Documents # to install in Documents, change this if you prefer somewhere else...
 git clone https://github.com/JimmiWazEre/meteor_blast.git
 cd meteor_blast
 python -m venv .venv
-source .venv/bin/activate
+# activate the venv (see below)
 pip install -r requirements.txt
+python main.py
 ```
 
-On Windows, replace the `source` line with:
-
-```bash
+**Windows** — activate the venv before installing:
+```
 .venv\Scripts\activate
 ```
 
----
+**Linux/Mac** — activate the venv before installing:
+```bash
+source .venv/bin/activate
+```
 
 ## Running the game
 
