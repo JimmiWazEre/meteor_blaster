@@ -55,6 +55,7 @@ from random import randint, uniform
 from colorsys import hsv_to_rgb
 from os.path import dirname, abspath, join
 import json
+from os.path import expanduser
 BASE_DIR = dirname(abspath(__file__))
 
 # -------------------------------------------------------------
@@ -651,7 +652,7 @@ game_music.set_volume(0.1)
 game_music.play(loops=-1)
 
 # scores
-SCORES_FILE = join(BASE_DIR, "scores.json")
+SCORES_FILE = join(expanduser("~"), ".meteor_blast_scores.json")
 
 # -------------------------------------------------------------
 # instantialise pre-loop classes
